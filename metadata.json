@@ -1,0 +1,8 @@
+{
+  "name": "灵感剧阵 (Inspiration Script Matrix)",
+  "description": "专业级动漫爽剧剧本创作平台，涵盖深度大纲生成、分阶段剧情脚本扩展及AI去化润色功能。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
