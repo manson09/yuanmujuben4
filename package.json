@@ -8,9 +8,10 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "dependencies": {
+"dependencies": {
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "openai": "^4.80.0",
     "@google/genai": "^1.38.0"
   },
   "devDependencies": {
