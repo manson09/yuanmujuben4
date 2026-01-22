@@ -1,7 +1,13 @@
+import OpenAI from "openai";
 
-import { GoogleGenAI, Type } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+const ai = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.API_KEY!,
+  defaultHeaders: {
+    "HTTP-Referer": "http://localhost:3000", 
+    "X-Title": "智能剧本智能体", 
+  }
+});
 
 export const generateOutline = async (
   novel: string,
@@ -9,7 +15,7 @@ export const generateOutline = async (
   formatRef: string,
   mode: 'male' | 'female'
 ) => {
-  const model = 'gemini-3-pro-preview';
+ 
   const prompt = `
     你是一位资深的动漫爽剧编剧。请根据以下原著内容，分析并创作一份深度故事大纲。
     
@@ -35,16 +41,13 @@ export const generateOutline = async (
     ${novel}
   `;
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      temperature: 0.8,
-      thinkingConfig: { thinkingBudget: 4000 }
-    }
+const response = await ai.chat.completions.create({
+    model: "gemini-3-pro-preview", 
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.8,
   });
 
-  return response.text;
+  return response.choices[0].message.content;
 };
 
 export const generateScriptPhase = async (
@@ -57,9 +60,6 @@ export const generateScriptPhase = async (
   mode: 'male' | 'female',
   phaseIndex: number
 ) => {
-  const model = 'gemini-3-pro-preview';
-  
-  // 提取规划中的集数和章节
   const episodeCountMatch = currentPhasePlan.match(/\[(\d+)-(\d+)\]集/);
   const chapterRangeMatch = currentPhasePlan.match(/【(.*?)】章节/);
   
@@ -81,7 +81,7 @@ export const generateScriptPhase = async (
     ${cumulativeSummary || '无（开篇阶段）'}
     
     - 本阶段执行指令：${currentPhasePlan}
-    - 整体大纲参考：${outline.substring(0, 1000)}...
+    - 整体大纲参考：${outline} 
 
     【原著小说内容全量库】：
     ${novel}
@@ -91,16 +91,12 @@ export const generateScriptPhase = async (
     2. 在结尾输出“【递增式全量剧情总结】”，必须包含之前所有阶段的总结及本阶段的新总结。
   `;
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      temperature: 0.7,
-      thinkingConfig: { thinkingBudget: 15000 }
-    }
-  });
-
-  return response.text;
+  const response = await ai.chat.completions.create({
+  model: "google/gemini-3-flash-Preview", 
+  messages: [{ role: "user", content: prompt }],
+  temperature: 0.7,
+});
+return response.choices[0].message.content;
 };
 
 export const polishScript = async (
@@ -117,10 +113,11 @@ export const polishScript = async (
     ${originalScript}
   `;
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
+  const response = await ai.chat.completions.create({
+    model: "google/gemini-3-flash-Preview", 
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.3,
   });
 
-  return response.text;
+  return response.choices[0].message.content;
 };
