@@ -1,12 +1,10 @@
-import OpenAI from "openai";
-
 const ai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY, 
   baseURL: import.meta.env.VITE_BASE_URL,
   dangerouslyAllowBrowser: true, 
   defaultHeaders: {
     "HTTP-Referer": window.location.origin,
-    "X-Title": "智能剧本智能体",
+    "X-Title": "Inspiration Script Matrix", 
   }
 });
 
