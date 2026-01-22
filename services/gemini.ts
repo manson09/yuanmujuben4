@@ -1,24 +1,21 @@
 import OpenAI from "openai";
 
-const createAIClient = (env) => {
-  return new OpenAI({
-    baseURL: env.VITE_BASE_URL, 
-    apiKey: env.VITE_OPENAI_API_KEY,
-    defaultHeaders: {
-      "HTTP-Referer": "http://localhost:3000",
-      "X-Title": "智能剧本智能体",
-    }
-  });
-};
+const ai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY, 
+  baseURL: import.meta.env.VITE_BASE_URL,
+  dangerouslyAllowBrowser: true, 
+  defaultHeaders: {
+    "HTTP-Referer": window.location.origin,
+    "X-Title": "智能剧本智能体",
+  }
+});
 
 export const generateOutline = async (
-  env: any,                  
   novel: string,
   styleRef: string,
   formatRef: string,
   mode: 'male' | 'female'
 ) => {
- 
   const prompt = `
     你是一位资深的动漫爽剧编剧。请根据以下原著内容，分析并创作一份深度故事大纲。
     
@@ -44,7 +41,7 @@ export const generateOutline = async (
     ${novel}
   `;
 
-const response = await ai.chat.completions.create({
+  const response = await ai.chat.completions.create({
     model: "gemini-3-pro-preview", 
     messages: [{ role: "user", content: prompt }],
     temperature: 0.8,
@@ -53,8 +50,8 @@ const response = await ai.chat.completions.create({
   return response.choices[0].message.content;
 };
 
+
 export const generateScriptPhase = async (
-  env: any, 
   novel: string,
   outline: string,
   currentPhasePlan: string,
@@ -76,14 +73,12 @@ export const generateScriptPhase = async (
     【最高原则 - 严禁偏离原著】：
     1. 核心任务：你必须严格基于原著小说的【${targetChapters}】章节内容进行扩展。
     2. 数量约束：本阶段必须生成且只能生成【${targetEpisodes}】集脚本。
-    3. 剧情一致性：台词、角色性格、物品、功法/招式必须与原著高度吻合。严禁任何形式的擅自加戏、删改重要人设。
+    3. 剧情一致性：台词、角色性格、物品、功法/招式必须与原著高度吻合。
     4. 爽剧节奏：符合2025年动漫爽剧节奏，单集2-3分钟，每集包含2-3个冲突爽点或悬念。
-    5. 台词去小说化：删除“呜呜”、“嘤嘤”等仅适用于小说的语气词，转为更具影视感的对白。
+    5. 台词去小说化：删除“呜呜”、“嘤嘤”等仅适用于小说的语气词。
     
     【上下文参考】：
-    - 历史全量剧情总结（包含1至${phaseIndex - 1}阶段）：
-    ${cumulativeSummary || '无（开篇阶段）'}
-    
+    - 历史全量剧情总结：${cumulativeSummary || '无（开篇阶段）'}
     - 本阶段执行指令：${currentPhasePlan}
     - 整体大纲参考：${outline} 
 
@@ -92,26 +87,28 @@ export const generateScriptPhase = async (
 
     【输出格式要求】：
     1. 依次输出每一集。
-    2. 在结尾输出“【递增式全量剧情总结】”，必须包含之前所有阶段的总结及本阶段的新总结。
+    2. 在结尾输出“【递增式全量剧情总结】”。
   `;
 
   const response = await ai.chat.completions.create({
-  model: "google/gemini-3-flash-Preview", 
-  messages: [{ role: "user", content: prompt }],
-  temperature: 0.7,
-});
-return response.choices[0].message.content;
+    model: "google/gemini-3-flash-Preview", 
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7,
+  });
+
+  return response.choices[0].message.content;
 };
 
+/**
+ * 第三部分：脚本润色
+ */
 export const polishScript = async (
-  env: any, 
   originalScript: string,
   kbContext: string
 ) => {
-  const model = 'gemini-3-flash-preview';
   const prompt = `
     你是一位专业的剧本精修师。请对以下剧情脚本进行“去AI化”处理。
-    保证剧情一致性（人物、物品、逻辑不变），优化自然语言，删除AI常用平庸词汇。
+    保证剧情一致性，优化自然语言，删除AI常用平庸词汇。
     知识库：${kbContext}
 
     待处理内容：
