@@ -42,7 +42,7 @@ export const generateOutline = async (
   `;
 
   const response = await ai.chat.completions.create({
-    model: "gemini-3-pro-preview", 
+    model: "google/gemini-3-pro-preview", 
     messages: [{ role: "user", content: prompt }],
     temperature: 0.8,
   });
