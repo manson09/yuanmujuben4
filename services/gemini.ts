@@ -91,7 +91,7 @@ export const generateScriptPhase = async (
   `;
 
   const response = await ai.chat.completions.create({
-    model: "google/gemini-3-flash-Preview", 
+    model: "google/gemini-3-pro-preview", 
     messages: [{ role: "user", content: prompt }],
     temperature: 0.7,
   });
