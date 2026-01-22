@@ -1,15 +1,18 @@
 import OpenAI from "openai";
 
-const ai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.API_KEY!,
-  defaultHeaders: {
-    "HTTP-Referer": "http://localhost:3000", 
-    "X-Title": "智能剧本智能体", 
-  }
-});
+const createAIClient = (env) => {
+  return new OpenAI({
+    baseURL: env.VITE_BASE_URL, 
+    apiKey: env.VITE_OPENAI_API_KEY,
+    defaultHeaders: {
+      "HTTP-Referer": "http://localhost:3000",
+      "X-Title": "智能剧本智能体",
+    }
+  });
+};
 
 export const generateOutline = async (
+  env: any,                  
   novel: string,
   styleRef: string,
   formatRef: string,
@@ -51,6 +54,7 @@ const response = await ai.chat.completions.create({
 };
 
 export const generateScriptPhase = async (
+  env: any, 
   novel: string,
   outline: string,
   currentPhasePlan: string,
@@ -100,6 +104,7 @@ return response.choices[0].message.content;
 };
 
 export const polishScript = async (
+  env: any, 
   originalScript: string,
   kbContext: string
 ) => {
