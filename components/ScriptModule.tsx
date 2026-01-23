@@ -30,14 +30,13 @@ const ScriptModule: React.FC<ScriptProps> = ({ project, onUpdate }) => {
     return Number(pIdx) === nextPhaseIndex || (idx + 1) === nextPhaseIndex;
   });
 
-  // 4. 生成函数
-  const handleGeneratePhase = async () => {
-    // 此时 selectedNovel 肯定已经被定义了，不会报错
+ const handleGeneratePhase = async () => {
+    // 基础校验
     if (!selectedNovel) {
-        alert("请先选择原著小说资源");
-        return;
+      alert("请先选择原著小说资源");
+      return;
     }
-    
+
     const novelFile = novels.find(n => n.id === selectedNovel);
     if (!novelFile) return alert("请在上方【执行配置】中选择原著小说");
 
@@ -45,35 +44,61 @@ const ScriptModule: React.FC<ScriptProps> = ({ project, onUpdate }) => {
 
     setLoading(true);
     try {
-      // 获取上一个阶段的总结
+      // --- 核心修复 1：精准获取上一个阶段的总结，防止剧情重复 ---
       const lastPhase = safePhases[safePhases.length - 1];
-      const cumulativeSummary = lastPhase ? lastPhase.summary : '';
+      const cumulativeSummary = lastPhase ? lastPhase.summary : '这是全剧开篇，请直接开始第一阶段。';
 
-      // 提取 keyPoints，增加容错
+      // --- 核心修复 2：获取包含分集对照表的 keyPoints ---
       const planPoints = currentPlan.keyPoints || (currentPlan as any).content || "";
 
+      // --- 核心修复 3：调用 API 并传入所有关键维度 ---
       const result = await generateScriptPhase(
         novelFile.content,
-        project.outline,
-        planPoints,
-        cumulativeSummary,
+        project.outline || '',
+        planPoints,           // 传入本阶段分集对照地图
+        cumulativeSummary,    // 传入上一阶段剧情终点
         styles.find(s => s.id === selectedStyle)?.content || '',
         formats.find(s => s.id === selectedFormat)?.content || '',
-        project.mode,
-        nextPhaseIndex
+        project.mode,         // 必须传入男/女频模式
+        nextPhaseIndex        // 阶段序号
       );
 
+      // --- 核心修复 4：精准解析“总结标记符” ---
       const summaryMarker = "【递增式全量剧情总结】";
-      const parts = result.split(summaryMarker);
-      const fullText = parts[0].trim();
-      const newCumulativeSummary = parts[1]?.trim() || "剧情总结生成失败，请检查AI输出格式。";
+      let fullText = "";
+      let newCumulativeSummary = "";
+
+      if (result.includes(summaryMarker)) {
+        const parts = result.split(summaryMarker);
+        fullText = parts[0].trim();
+        // 提取标记符之后的内容，若没有则复用旧总结
+        newCumulativeSummary = parts[1]?.replace(/[:：]/, "").trim() || cumulativeSummary;
+      } else {
+        // 兜底逻辑：如果 AI 没按格式输出标记符
+        fullText = result;
+        newCumulativeSummary = "AI未返回总结标记，请手动核对进度。";
+      }
 
       const newPhase: PhaseContent = {
         phaseIndex: nextPhaseIndex,
         episodes: [], 
         summary: newCumulativeSummary,
-        fullText
+        fullText: fullText
       };
+
+      // --- 保存到项目状态 ---
+      onUpdate({ 
+        ...project, 
+        phases: [...safePhases, newPhase] 
+      });
+
+    } catch (err) {
+      console.error("生成出错:", err);
+      alert("生成中断，请检查网络或 API Key 余额。");
+    } finally {
+      setLoading(false);
+    }
+  };
 
       // 关键：确保 phases 始终是数组并追加
       onUpdate({ 
