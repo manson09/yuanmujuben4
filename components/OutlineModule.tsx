@@ -18,7 +18,7 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
   const formats = project.knowledgeBase.filter(f => f.type === 'format');
   const styles = project.knowledgeBase.filter(f => f.type === 'style');
 
-  // 【精准解析逻辑】：将大纲切分为带有分集对照表的阶段数组
+  // 【精准解析逻辑】：动态识别阶段及每一集的原著对照
   const parsePhasePlans = (text: string): PhasePlan[] => {
     const plans: PhasePlan[] = [];
     const markerStart = "【阶段详细规划开始】";
@@ -31,23 +31,20 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
       targetText = text.substring(startIndex + markerStart.length, endIndex).trim();
     }
 
-    // 按照“第n阶段”切分块，保留块内所有的“第n集：对应原著第x章”信息
+    // 按“第n阶段”切分块，保留块内所有的分集清单
     const rawPhases = targetText.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
     
     rawPhases.forEach((content, index) => {
       const phaseNum = index + 1;
       const fullPhaseContent = `第${phaseNum}阶段${content}`;
       
-      // 提取本阶段总的集数范围 [1-6]
       const episodeMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]集/);
-      // 提取本阶段总的章节范围 【1-12】
       const chapterMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]章节/);
 
       plans.push({
         phaseIndex: phaseNum,
         episodesRange: episodeMatch ? episodeMatch[1] : '动态分配',
         chaptersRange: chapterMatch ? chapterMatch[1] : '分析中',
-        // 【关键】：这里存储了包含每一集对应哪一章的完整文字地图
         keyPoints: fullPhaseContent.trim() 
       });
     });
@@ -92,9 +89,10 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
 
   return (
     <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
-      {/* 左侧配置 */}
+      {/* 左侧配置栏 */}
       <div className="lg:col-span-1 space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
-        <h3 className="font-bold text-slate-800 border-b pb-2">大纲生成配置</h3>
+        <h3 className="font-bold text-slate-800 border-b pb-2">生成配置</h3>
+        
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-2">原著小说指向</label>
           <select 
@@ -136,7 +134,7 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
           disabled={loading}
           className="w-full py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-all shadow-md"
         >
-          {loading ? 'AI深度分析中...' : project.outline ? '重新生成大纲' : '生成分集执行大纲'}
+          {loading ? 'AI分析原著并规划中...' : project.outline ? '重新生成大纲' : '生成分集执行大纲'}
         </button>
 
         {project.outline && (
@@ -149,7 +147,31 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
         )}
       </div>
 
-      {/* 右侧展示 */}
+      {/* 右侧展示区 */}
       <div className="lg:col-span-3">
         {project.outline ? (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <span className="text-xs font-bold text-slate-400">大纲内容及分集对照地图</span>
+              <span className="text-xs font-bold bg-teal-100 text-teal-700 px-2 py-1 rounded">
+                共识别出 {project.phasePlans.length} 个阶段
+              </span>
+            </div>
+            <div className="p-8 whitespace-pre-wrap text-slate-700 max-h-[70vh] overflow-y-auto leading-relaxed font-serif text-lg">
+              {project.outline}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-[50vh] bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+            <svg className="w-12 h-12 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            <p>请先在左侧选择小说并点击生成按钮</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default OutlineModule;
