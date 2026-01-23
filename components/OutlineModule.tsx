@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Project, PhasePlan } from '../types';
 import { generateOutline } from '../services/gemini';
@@ -19,11 +18,11 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
   const formats = project.knowledgeBase.filter(f => f.type === 'format');
   const styles = project.knowledgeBase.filter(f => f.type === 'style');
 
-  // --- 从这里开始替换 ---
+  // 【核心修复：解析逻辑】
   const parsePhasePlans = (text: string): PhasePlan[] => {
     const plans: PhasePlan[] = [];
     
-    // 1. 定位标记符（为了精准抓取那一块地图）
+    // 标记符定位
     const markerStart = "【阶段详细规划开始】";
     const markerEnd = "【阶段详细规划结束】";
     const startIndex = text.indexOf(markerStart);
@@ -34,45 +33,29 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
       targetText = text.substring(startIndex + markerStart.length, endIndex).trim();
     }
 
+    // 按照“第n阶段”切分，这样能保留阶段下的所有分集清单
     const rawPhases = targetText.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
     
     rawPhases.forEach((content, index) => {
       const phaseNum = index + 1;
-      const fullPhaseContent = `第${phaseNum}阶段${content}`; // 补回被切掉的标题头
+      const fullPhaseContent = `第${phaseNum}阶段${content}`;
       
-      // 提取本阶段的集数范围 [1-6]
+      // 提取集数 [1-6]
       const episodeMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]集/);
-      // 提取本阶段的章节范围 【1-12】
+      // 提取章节 【1-12】
       const chapterMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]章节/);
 
       plans.push({
         phaseIndex: phaseNum,
-        episodesRange: episodeMatch ? episodeMatch[1] : '待定',
+        episodesRange: episodeMatch ? episodeMatch[1] : `${index * 10 + 1}-${(index + 1) * 10}`,
         chaptersRange: chapterMatch ? chapterMatch[1] : '待定',
-        // 【关键】：keyPoints 现在包含了这一阶段的所有详细分集清单
+        // 这里完整保留了该阶段下的所有分集清单文字
         keyPoints: fullPhaseContent.trim() 
       });
     });
 
     return plans;
   };
-
-
-    if (plans.length === 0) {
-      const backupLines = text.split('\n').filter(l => /第.*阶段/.test(l));
-      backupLines.forEach((l, i) => {
-        plans.push({
-          phaseIndex: i + 1,
-          episodesRange: '待定',
-          chaptersRange: '待定',
-          keyPoints: l.trim()
-        });
-      });
-    }
-    
-    return plans;
-  };
-  // --- 替换到这里结束 ---
 
   const handleGenerate = async () => {
     const novelFile = novels.find(n => n.id === selectedNovel);
@@ -111,6 +94,7 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
 
   return (
     <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
+      {/* 左侧配置栏 */}
       <div className="lg:col-span-1 space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
         <h3 className="font-bold text-slate-800 border-b pb-2">生成配置</h3>
         <div>
@@ -167,6 +151,7 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
         )}
       </div>
 
+      {/* 右侧展示区 */}
       <div className="lg:col-span-3">
         {project.outline ? (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
