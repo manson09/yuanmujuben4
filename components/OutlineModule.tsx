@@ -18,7 +18,7 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
   const formats = project.knowledgeBase.filter(f => f.type === 'format');
   const styles = project.knowledgeBase.filter(f => f.type === 'style');
 
- const parsePhasePlans = (text: string): PhasePlan[] => {
+const parsePhasePlans = (text: string): PhasePlan[] => {
   const plans: PhasePlan[] = [];
   const markerStart = "【START_MAP】";
   const markerEnd = "【END_MAP】";
@@ -29,24 +29,22 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
 
   const mapContent = text.substring(startIndex + markerStart.length, endIndex).trim();
   
-  // 按“第n阶段”分割，保留其下的分集清单
+  // 核心逻辑：按“第n阶段”切分，这样每个块里都包含了该阶段下所有的分集清单
   const rawPhases = mapContent.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
   
   rawPhases.forEach((content, index) => {
-    const phaseNum = index + 1;
-    // 动态提取这一段里提到的集数范围
-    const epRange = content.match(/[\[【](\d+-\d+)[\]】]集/);
-    const chRange = content.match(/[\[【](\d+-\d+)[\]】]章节/);
+    const phaseIndex = index + 1;
+    const epMatch = content.match(/[\[【](\d+-\d+)[\]】]集/);
+    const chMatch = content.match(/[\[【](\d+-\d+)[\]】]章节/);
 
     plans.push({
-      phaseIndex: phaseNum,
-      episodesRange: epRange ? epRange[1] : '动态',
-      chaptersRange: chRange ? chRange[1] : '动态',
-      // 【核心】：完整存入包含“- 第x集：对应第y章”的文本
-      keyPoints: `第${phaseNum}阶段` + content.trim()
+      phaseIndex,
+      episodesRange: epMatch ? epMatch[1] : '待定',
+      chaptersRange: chMatch ? chMatch[1] : '待定',
+      // 【关键】：这里存入的是该阶段完整的指令：包含“- 第x集：第y章”
+      keyPoints: `第${phaseIndex}阶段` + content.trim() 
     });
   });
-
   return plans;
 };
 
