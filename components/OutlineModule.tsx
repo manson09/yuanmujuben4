@@ -19,34 +19,60 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
   const formats = project.knowledgeBase.filter(f => f.type === 'format');
   const styles = project.knowledgeBase.filter(f => f.type === 'style');
 
+  // --- 从这里开始替换 ---
   const parsePhasePlans = (text: string): PhasePlan[] => {
     const plans: PhasePlan[] = [];
+    
+    // 1. 定义可能的标记词（兼容 AI 的各种输出）
     const markerStart = "【阶段详细规划开始】";
     const markerEnd = "【阶段详细规划结束】";
     
+    let targetText = text;
     const startIndex = text.indexOf(markerStart);
     const endIndex = text.indexOf(markerEnd);
     
+    // 如果找到了标记符，只在标记符范围内提取，否则全量搜索（更保险）
     if (startIndex !== -1 && endIndex !== -1) {
-      const planText = text.substring(startIndex + markerStart.length, endIndex);
-      const lines = planText.split('\n').filter(l => l.trim().includes('阶段'));
+      targetText = text.substring(startIndex + markerStart.length, endIndex);
+    }
+
+    // 2. 核心逻辑：按行切分并匹配包含“阶段”关键字的内容
+    const lines = targetText.split('\n').filter(l => l.trim().includes('阶段'));
+    
+    lines.forEach((line) => {
+      // 提取集数：支持 [1-6] 或 【1-6】
+      const episodeMatch = line.match(/[\[【](.*?)[\]】]集/);
+      // 提取章节：支持 [1-12] 或 【1-12】
+      const chapterMatch = line.match(/[\[【](.*?)[\]】]章节/);
       
-      lines.forEach((line, index) => {
-        const episodeMatch = line.match(/\[(.*?)\]集/);
-        const chapterMatch = line.match(/【(.*?)】章节/);
+      // 只要包含集数或章节信息，就认为是一个有效的阶段规划
+      if (episodeMatch || chapterMatch) {
         plans.push({
-          phaseIndex: index + 1,
-          episodesRange: episodeMatch ? episodeMatch[1] : '1-6',
+          phaseIndex: plans.length + 1, // 自动生成序号：1, 2, 3...
+          episodesRange: episodeMatch ? episodeMatch[1] : '待定',
           chaptersRange: chapterMatch ? chapterMatch[1] : '待定',
           keyPoints: line.trim()
+        });
+      }
+    });
+
+    // 3. 彻底删除之前的硬编码回退逻辑，改用动态识别
+    // 如果还是没解析出来，尝试最后一次：只要包含“第x阶段”就抓取
+    if (plans.length === 0) {
+      const backupLines = text.split('\n').filter(l => /第.*阶段/.test(l));
+      backupLines.forEach((l, i) => {
+        plans.push({
+          phaseIndex: i + 1,
+          episodesRange: '待定',
+          chaptersRange: '待定',
+          keyPoints: l.trim()
         });
       });
     }
     
-    return plans.length > 0 ? plans : [
-      { phaseIndex: 1, episodesRange: '1-6', chaptersRange: '1-10', keyPoints: '第1阶段：[1-6]集，原著【1-10】章节，开篇高能' },
-    ];
+    return plans;
   };
+  // --- 替换到这里结束 ---
 
   const handleGenerate = async () => {
     const novelFile = novels.find(n => n.id === selectedNovel);
