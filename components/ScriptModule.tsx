@@ -10,21 +10,33 @@ interface ScriptProps {
 }
 
 const ScriptModule: React.FC<ScriptProps> = ({ project, onUpdate }) => {
-  // ... useState 部分 ...
+  // 1. 所有的状态定义必须在这里
+  const [loading, setLoading] = useState(false);
+  const [selectedNovel, setSelectedNovel] = useState<string>('');
+  const [selectedFormat, setSelectedFormat] = useState<string>('');
+  const [selectedStyle, setSelectedStyle] = useState<string>('');
 
-  // 1. 自动校准当前进度 (增加空值防御)
+  // 2. 基础数据过滤
+  const novels = project.knowledgeBase.filter(f => f.type === 'novel');
+  const formats = project.knowledgeBase.filter(f => f.type === 'format');
+  const styles = project.knowledgeBase.filter(f => f.type === 'style');
+
+  // 3. 计算进度逻辑
   const safePhases = Array.isArray(project.phases) ? project.phases : [];
   const nextPhaseIndex = safePhases.length + 1;
   
-  // 2. 增强匹配逻辑：支持 phaseIndex 匹配 或 数组下标匹配
   const currentPlan = project.phasePlans.find((p, idx) => {
-    const pIdx = p.phaseIndex || (p as any).index; // 兼容不同字段名
+    const pIdx = p.phaseIndex || (p as any).index;
     return Number(pIdx) === nextPhaseIndex || (idx + 1) === nextPhaseIndex;
   });
 
+  // 4. 生成函数
   const handleGeneratePhase = async () => {
-    // 增加更明确的报错提示
-    if (!project.outline) return alert("请先生成剧本大纲");
+    // 此时 selectedNovel 肯定已经被定义了，不会报错
+    if (!selectedNovel) {
+        alert("请先选择原著小说资源");
+        return;
+    }
     
     const novelFile = novels.find(n => n.id === selectedNovel);
     if (!novelFile) return alert("请在上方【执行配置】中选择原著小说");
