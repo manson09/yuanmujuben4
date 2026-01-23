@@ -10,54 +10,43 @@ interface ScriptProps {
 }
 
 const ScriptModule: React.FC<ScriptProps> = ({ project, onUpdate }) => {
-  const [loading, setLoading] = useState(false);
-  const [selectedNovel, setSelectedNovel] = useState<string>('');
-  const [selectedFormat, setSelectedFormat] = useState<string>('');
-  const [selectedStyle, setSelectedStyle] = useState<string>('');
+  // ... useState 部分 ...
 
-  const novels = project.knowledgeBase.filter(f => f.type === 'novel');
-  const formats = project.knowledgeBase.filter(f => f.type === 'format');
-  const styles = project.knowledgeBase.filter(f => f.type === 'style');
-
-  // 当前应该生成的阶段索引
-  const nextPhaseIndex = project.phases.length + 1;
- const currentPlan = project.phasePlans.find((p, idx) => 
-  (p.phaseIndex == nextPhaseIndex) || (idx + 1 == nextPhaseIndex)
-);
+  // 1. 自动校准当前进度 (增加空值防御)
+  const safePhases = Array.isArray(project.phases) ? project.phases : [];
+  const nextPhaseIndex = safePhases.length + 1;
+  
+  // 2. 增强匹配逻辑：支持 phaseIndex 匹配 或 数组下标匹配
+  const currentPlan = project.phasePlans.find((p, idx) => {
+    const pIdx = p.phaseIndex || (p as any).index; // 兼容不同字段名
+    return Number(pIdx) === nextPhaseIndex || (idx + 1) === nextPhaseIndex;
+  });
 
   const handleGeneratePhase = async () => {
-    if (!project.outline || project.phasePlans.length === 0) {
-      alert("请先生成剧本大纲及阶段规划");
-      return;
-    }
-    
-    if (!currentPlan) {
-      alert("所有规划阶段已生成完毕");
-      return;
-    }
+    // 增加更明确的报错提示
+    if (!project.outline) return alert("请先生成剧本大纲");
     
     const novelFile = novels.find(n => n.id === selectedNovel);
-    if (!novelFile) {
-      alert("请选择原著小说资源");
-      return;
-    }
+    if (!novelFile) return alert("请在上方【执行配置】中选择原著小说");
+
+    if (!currentPlan) return alert("未找到该阶段的规划，请重新生成大纲");
 
     setLoading(true);
     try {
-      // 获取上一个阶段的“累计总结”
-      const lastPhase = project.phases[project.phases.length - 1];
+      // 获取上一个阶段的总结
+      const lastPhase = safePhases[safePhases.length - 1];
       const cumulativeSummary = lastPhase ? lastPhase.summary : '';
 
-      const styleFile = styles.find(s => s.id === selectedStyle);
-      const formatFile = formats.find(f => f.id === selectedFormat);
+      // 提取 keyPoints，增加容错
+      const planPoints = currentPlan.keyPoints || (currentPlan as any).content || "";
 
       const result = await generateScriptPhase(
         novelFile.content,
         project.outline,
-        currentPlan.keyPoints,
+        planPoints,
         cumulativeSummary,
-        styleFile?.content || '',
-        formatFile?.content || '',
+        styles.find(s => s.id === selectedStyle)?.content || '',
+        formats.find(s => s.id === selectedFormat)?.content || '',
         project.mode,
         nextPhaseIndex
       );
@@ -65,7 +54,7 @@ const ScriptModule: React.FC<ScriptProps> = ({ project, onUpdate }) => {
       const summaryMarker = "【递增式全量剧情总结】";
       const parts = result.split(summaryMarker);
       const fullText = parts[0].trim();
-      const newCumulativeSummary = parts[1]?.trim() || "剧情总结生成失败，请检查模型输出。";
+      const newCumulativeSummary = parts[1]?.trim() || "剧情总结生成失败，请检查AI输出格式。";
 
       const newPhase: PhaseContent = {
         phaseIndex: nextPhaseIndex,
@@ -74,10 +63,15 @@ const ScriptModule: React.FC<ScriptProps> = ({ project, onUpdate }) => {
         fullText
       };
 
-      onUpdate({ ...project, phases: [...project.phases, newPhase] });
+      // 关键：确保 phases 始终是数组并追加
+      onUpdate({ 
+        ...project, 
+        phases: [...safePhases, newPhase] 
+      });
+      
     } catch (err) {
       console.error(err);
-      alert("生成中断，请检查网络后重试。当前进度已为您保留在本地。");
+      alert("生成失败，请检查 API 配置或网络");
     } finally {
       setLoading(false);
     }
