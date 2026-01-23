@@ -20,29 +20,33 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
 
  const parsePhasePlans = (text: string): PhasePlan[] => {
   const plans: PhasePlan[] = [];
-  // 匹配标记符（确保你在 gemini.ts 的 generateOutline prompt 里也加了这两个标记）
-  const markerStart = "【阶段详细规划开始】";
-  const markerEnd = "【阶段详细规划结束】";
-  
+  const markerStart = "【START_MAP】";
+  const markerEnd = "【END_MAP】";
   const startIndex = text.indexOf(markerStart);
   const endIndex = text.indexOf(markerEnd);
   
-  if (startIndex !== -1 && endIndex !== -1) {
-    const mapContent = text.substring(startIndex + markerStart.length, endIndex).trim();
-    
-    // 按照“第n阶段”切分，这样每个 plans 元素里都带有了这一阶段的所有“分集对照”
-    const rawPhases = mapContent.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
-    
-    rawPhases.forEach((content, index) => {
-      plans.push({
-        phaseIndex: index + 1,
-        // 这里存储的是该阶段完整的：第x阶段：[x-y]集... -第n集：对应第m章...
-        keyPoints: `第${index + 1}阶段${content.trim()}`, 
-        episodesRange: '动态', // 后面逻辑会自动提取
-        chaptersRange: '动态'
-      });
+  if (startIndex === -1 || endIndex === -1) return [];
+
+  const mapContent = text.substring(startIndex + markerStart.length, endIndex).trim();
+  
+  // 按“第n阶段”分割，保留其下的分集清单
+  const rawPhases = mapContent.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
+  
+  rawPhases.forEach((content, index) => {
+    const phaseNum = index + 1;
+    // 动态提取这一段里提到的集数范围
+    const epRange = content.match(/[\[【](\d+-\d+)[\]】]集/);
+    const chRange = content.match(/[\[【](\d+-\d+)[\]】]章节/);
+
+    plans.push({
+      phaseIndex: phaseNum,
+      episodesRange: epRange ? epRange[1] : '动态',
+      chaptersRange: chRange ? chRange[1] : '动态',
+      // 【核心】：完整存入包含“- 第x集：对应第y章”的文本
+      keyPoints: `第${phaseNum}阶段` + content.trim()
     });
-  }
+  });
+
   return plans;
 };
 
