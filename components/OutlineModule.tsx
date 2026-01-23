@@ -18,39 +18,33 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
   const formats = project.knowledgeBase.filter(f => f.type === 'format');
   const styles = project.knowledgeBase.filter(f => f.type === 'style');
 
-  // 【精准解析逻辑】：动态识别阶段及每一集的原著对照
-  const parsePhasePlans = (text: string): PhasePlan[] => {
-    const plans: PhasePlan[] = [];
-    const markerStart = "【阶段详细规划开始】";
-    const markerEnd = "【阶段详细规划结束】";
-    const startIndex = text.indexOf(markerStart);
-    const endIndex = text.indexOf(markerEnd);
+ const parsePhasePlans = (text: string): PhasePlan[] => {
+  const plans: PhasePlan[] = [];
+  // 匹配标记符（确保你在 gemini.ts 的 generateOutline prompt 里也加了这两个标记）
+  const markerStart = "【阶段详细规划开始】";
+  const markerEnd = "【阶段详细规划结束】";
+  
+  const startIndex = text.indexOf(markerStart);
+  const endIndex = text.indexOf(markerEnd);
+  
+  if (startIndex !== -1 && endIndex !== -1) {
+    const mapContent = text.substring(startIndex + markerStart.length, endIndex).trim();
     
-    let targetText = text;
-    if (startIndex !== -1 && endIndex !== -1) {
-      targetText = text.substring(startIndex + markerStart.length, endIndex).trim();
-    }
-
-    // 按“第n阶段”切分块，保留块内所有的分集清单
-    const rawPhases = targetText.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
+    // 按照“第n阶段”切分，这样每个 plans 元素里都带有了这一阶段的所有“分集对照”
+    const rawPhases = mapContent.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
     
     rawPhases.forEach((content, index) => {
-      const phaseNum = index + 1;
-      const fullPhaseContent = `第${phaseNum}阶段${content}`;
-      
-      const episodeMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]集/);
-      const chapterMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]章节/);
-
       plans.push({
-        phaseIndex: phaseNum,
-        episodesRange: episodeMatch ? episodeMatch[1] : '动态分配',
-        chaptersRange: chapterMatch ? chapterMatch[1] : '分析中',
-        keyPoints: fullPhaseContent.trim() 
+        phaseIndex: index + 1,
+        // 这里存储的是该阶段完整的：第x阶段：[x-y]集... -第n集：对应第m章...
+        keyPoints: `第${index + 1}阶段${content.trim()}`, 
+        episodesRange: '动态', // 后面逻辑会自动提取
+        chaptersRange: '动态'
       });
     });
-
-    return plans;
-  };
+  }
+  return plans;
+};
 
   const handleGenerate = async () => {
     const novelFile = novels.find(n => n.id === selectedNovel);
