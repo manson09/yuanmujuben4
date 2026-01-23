@@ -23,41 +23,41 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
   const parsePhasePlans = (text: string): PhasePlan[] => {
     const plans: PhasePlan[] = [];
     
-    // 1. 定义可能的标记词（兼容 AI 的各种输出）
+    // 1. 定位标记符（为了精准抓取那一块地图）
     const markerStart = "【阶段详细规划开始】";
     const markerEnd = "【阶段详细规划结束】";
-    
-    let targetText = text;
     const startIndex = text.indexOf(markerStart);
     const endIndex = text.indexOf(markerEnd);
     
-    // 如果找到了标记符，只在标记符范围内提取，否则全量搜索（更保险）
+    let targetText = text;
     if (startIndex !== -1 && endIndex !== -1) {
-      targetText = text.substring(startIndex + markerStart.length, endIndex);
+      targetText = text.substring(startIndex + markerStart.length, endIndex).trim();
     }
 
-    // 2. 核心逻辑：按行切分并匹配包含“阶段”关键字的内容
-    const lines = targetText.split('\n').filter(l => l.trim().includes('阶段'));
+    const rawPhases = targetText.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
     
-    lines.forEach((line) => {
-      // 提取集数：支持 [1-6] 或 【1-6】
-      const episodeMatch = line.match(/[\[【](.*?)[\]】]集/);
-      // 提取章节：支持 [1-12] 或 【1-12】
-      const chapterMatch = line.match(/[\[【](.*?)[\]】]章节/);
+    rawPhases.forEach((content, index) => {
+      const phaseNum = index + 1;
+      const fullPhaseContent = `第${phaseNum}阶段${content}`; // 补回被切掉的标题头
       
-      // 只要包含集数或章节信息，就认为是一个有效的阶段规划
-      if (episodeMatch || chapterMatch) {
-        plans.push({
-          phaseIndex: plans.length + 1, // 自动生成序号：1, 2, 3...
-          episodesRange: episodeMatch ? episodeMatch[1] : '待定',
-          chaptersRange: chapterMatch ? chapterMatch[1] : '待定',
-          keyPoints: line.trim()
-        });
-      }
+      // 提取本阶段的集数范围 [1-6]
+      const episodeMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]集/);
+      // 提取本阶段的章节范围 【1-12】
+      const chapterMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]章节/);
+
+      plans.push({
+        phaseIndex: phaseNum,
+        episodesRange: episodeMatch ? episodeMatch[1] : '待定',
+        chaptersRange: chapterMatch ? chapterMatch[1] : '待定',
+        // 【关键】：keyPoints 现在包含了这一阶段的所有详细分集清单
+        keyPoints: fullPhaseContent.trim() 
+      });
     });
 
-    // 3. 彻底删除之前的硬编码回退逻辑，改用动态识别
-    // 如果还是没解析出来，尝试最后一次：只要包含“第x阶段”就抓取
+    return plans;
+  };
+
+
     if (plans.length === 0) {
       const backupLines = text.split('\n').filter(l => /第.*阶段/.test(l));
       backupLines.forEach((l, i) => {
