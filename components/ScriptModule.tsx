@@ -21,7 +21,9 @@ const ScriptModule: React.FC<ScriptProps> = ({ project, onUpdate }) => {
 
   // 当前应该生成的阶段索引
   const nextPhaseIndex = project.phases.length + 1;
-  const currentPlan = project.phasePlans.find(p => p.phaseIndex === nextPhaseIndex);
+ const currentPlan = project.phasePlans.find((p, idx) => 
+  (p.phaseIndex == nextPhaseIndex) || (idx + 1 == nextPhaseIndex)
+);
 
   const handleGeneratePhase = async () => {
     if (!project.outline || project.phasePlans.length === 0) {
