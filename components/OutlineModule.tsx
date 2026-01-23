@@ -22,7 +22,10 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
   const parsePhasePlans = (text: string): PhasePlan[] => {
     const plans: PhasePlan[] = [];
     
-    // 标记符定位
+   const parsePhasePlans = (text: string): PhasePlan[] => {
+    const plans: PhasePlan[] = [];
+    
+    // 1. 定位 AI 输出的规划区域
     const markerStart = "【阶段详细规划开始】";
     const markerEnd = "【阶段详细规划结束】";
     const startIndex = text.indexOf(markerStart);
@@ -33,30 +36,31 @@ const OutlineModule: React.FC<OutlineProps> = ({ project, onUpdate }) => {
       targetText = text.substring(startIndex + markerStart.length, endIndex).trim();
     }
 
-    // 按照“第n阶段”切分，这样能保留阶段下的所有分集清单
+    // 2. 【核心修改】：按照“第n阶段”切分文字块
+    // 这样每个块里都会包含“第n阶段：...”以及它下面的“- 第x集：...”所有清单
     const rawPhases = targetText.split(/第\d+阶段[:：]?/).filter(p => p.trim().length > 0);
     
     rawPhases.forEach((content, index) => {
       const phaseNum = index + 1;
       const fullPhaseContent = `第${phaseNum}阶段${content}`;
       
-      // 提取集数 [1-6]
+      // 3. 【动态抓取】：让 AI 自己决定集数和章节，我们只负责提取
+      // 匹配格式如：[1-8]集 或 【1-12】章节
       const episodeMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]集/);
-      // 提取章节 【1-12】
       const chapterMatch = fullPhaseContent.match(/[\[【](\d+-\d+)[\]】]章节/);
 
       plans.push({
         phaseIndex: phaseNum,
-        episodesRange: episodeMatch ? episodeMatch[1] : `${index * 10 + 1}-${(index + 1) * 10}`,
-        chaptersRange: chapterMatch ? chapterMatch[1] : '待定',
-        // 这里完整保留了该阶段下的所有分集清单文字
+        // 这里不再用 index*10 这种死公式，而是优先取 AI 生成的数字
+        episodesRange: episodeMatch ? episodeMatch[1] : '动态分配',
+        chaptersRange: chapterMatch ? chapterMatch[1] : '动态分配',
+        // 【最重要】：把包含“第x集对应第y章”的完整清单全部存入 keyPoints
         keyPoints: fullPhaseContent.trim() 
       });
     });
 
     return plans;
   };
-
   const handleGenerate = async () => {
     const novelFile = novels.find(n => n.id === selectedNovel);
     if (!novelFile) {
