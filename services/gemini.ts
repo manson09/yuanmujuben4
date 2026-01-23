@@ -14,10 +14,12 @@ export const generateOutline = async (novel: string, styleRef: string, formatRef
   const prompt = `
     任务：你是一位顶级的动漫爽剧架构师。请深度分析原著内容，制定一份精准的【分集执行地图】。
     当前模式：【${mode === 'male' ? '男频：热血升级、爆爽打脸、极致节奏' : '女频：重生复仇、虐渣逆袭、情感拉扯'}】
-    【核心目标】：
-    1. 风格：严格执行${mode}频爽剧叙事逻辑。
-    2. 全量规模：70-85集，每集对应原著具体章节。
-
+    【核心铁律】：
+    1. **集数总量**：必须规划出 70-85 集的内容。
+    2. **单集容量**：每集对应 2-3 分钟影视内容，严禁注水。
+    3. **章节对齐**：必须精准标注每一集对应的原著章节，禁止凭空捏造原著没有的情节。
+    4. **风格锁定**：按【${mode === 'male' ? '男频' : '女频'}】爽剧节奏，每集结尾必须有强力反转或钩子。
+    
     【！！！输出格式强制要求！！！】：
     【START_MAP】
     第1阶段：[1-6]集，原著【1-12】章节，
@@ -62,16 +64,7 @@ export const generateOutline = async (novel: string, styleRef: string, formatRef
 /**
  * 第二部分：剧情脚本功能（地图精准执行者）
  */
-export const generateScriptPhase = async (
-  novel: string,
-  outline: string,
-  currentPhasePlan: string, // 这里存的是大纲里的分集地图
-  cumulativeSummary: string,
-  styleRef: string,
-  formatRef: string,
-  mode: 'male' | 'female',
-  phaseIndex: number
-) => {
+export const generateScriptPhase = async (novel: string, outline: string, currentPhasePlan: string, cumulativeSummary: string, styleRef: string, formatRef: string, mode: 'male' | 'female', phaseIndex: number) => {
   const prompt = `
     任务：你是顶级剧本主笔。现在请执行【第${phaseIndex}阶段】的全量脚本创作。
     当前爽剧模式：【${mode === 'male' ? '男频（热血、升级、爆爽打脸）' : '女频（重生、复仇、极致拉扯）'}】
